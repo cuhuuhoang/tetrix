@@ -23,7 +23,7 @@ type ControlButton = ControlButtonSpec & {
   text: Phaser.GameObjects.Text
 }
 
-type HudButtonAction = 'save' | 'restart'
+type HudButtonAction = 'save' | 'restart' | 'pause'
 
 type HudButton = {
   action: HudButtonAction
@@ -43,6 +43,7 @@ type HudElements = {
   levelValue: Phaser.GameObjects.Text
   nextLabel: Phaser.GameObjects.Text
   nextCells: Phaser.GameObjects.Rectangle[]
+  pauseButton: HudButton
   saveButton: HudButton
   restartButton: HudButton
   statusText: Phaser.GameObjects.Text
@@ -80,6 +81,7 @@ export class TetrixScene extends Phaser.Scene {
   private statusTimer?: Phaser.Time.TimerEvent
   private lastState?: RenderState
   private saveBusy = false
+  private paused = false
   private controlLayer?: Phaser.GameObjects.Container
   private controlButtons: ControlButton[] = []
   private holdTimers = new Map<number, Phaser.Time.TimerEvent>()
@@ -128,11 +130,14 @@ export class TetrixScene extends Phaser.Scene {
   startNewGame(snapshot?: GameSnapshot) {
     this.engine.start(snapshot)
     this.saveBusy = false
+    this.paused = false
     this.resetDropTimer()
     this.needsDraw = true
     const state = this.engine.getRenderState()
     this.lastState = state
     this.updateHud(state)
+    this.updatePauseButtonLabel()
+    this.applyHudButtonStates()
     this.callbacks.onStateUpdate?.(state)
   }
 
@@ -148,6 +153,7 @@ export class TetrixScene extends Phaser.Scene {
   }
 
   handleAction(action: InputAction) {
+    if (this.paused) return
     this.engine.handleAction(action)
     this.needsDraw = true
   }
@@ -177,6 +183,33 @@ export class TetrixScene extends Phaser.Scene {
   setSaveBusy(busy: boolean) {
     this.saveBusy = busy
     this.applyHudButtonStates()
+  }
+
+  private togglePause() {
+    if (!this.lastState || this.lastState.isGameOver) return
+    this.setPaused(!this.paused)
+  }
+
+  private setPaused(value: boolean) {
+    if (this.paused === value) return
+    if (value) {
+      this.engine.pause()
+      this.paused = true
+      this.showStatus('Paused', 0)
+    } else {
+      this.engine.resume()
+      this.resetDropTimer()
+      this.paused = false
+      this.showStatus('Resumed', 1200)
+    }
+    this.updatePauseButtonLabel()
+    this.applyHudButtonStates()
+  }
+
+  private updatePauseButtonLabel() {
+    if (!this.hudElements) return
+    const label = this.paused ? 'Resume' : 'Pause'
+    this.hudElements.pauseButton.label.setText(label)
   }
 
   private resetDropTimer() {
@@ -300,36 +333,42 @@ export class TetrixScene extends Phaser.Scene {
 
   private handleResize = () => {
     const { width, height } = this.scale.gameSize
-    const padding = 24
+    const outerPadding = 18
+    const panelSpacing = Math.max(28, Math.floor(width * 0.025))
     const minPanel = 150
     const maxPanel = 260
     const controlHeight = Math.min(200, Math.max(140, Math.floor(height * 0.24)))
-    const desiredPanel = Phaser.Math.Clamp(Math.floor(width * 0.28), minPanel, maxPanel)
-    const availableWidth = width - padding * 3 - desiredPanel
-    const availableHeight = height - controlHeight - padding * 3
+    const desiredPanel = Phaser.Math.Clamp(Math.floor(width * 0.24), minPanel, maxPanel)
+    const availableWidth = width - outerPadding * 2 - panelSpacing - desiredPanel
+    const availableHeight = height - controlHeight - outerPadding * 3
     const cellW = Math.floor(availableWidth / this.engine.width)
     const cellH = Math.floor(availableHeight / this.engine.height)
     const nextCellSize = Math.max(14, Math.min(cellW, cellH))
     this.cellSize = nextCellSize
     this.boardPixelWidth = this.cellSize * this.engine.width
     this.boardPixelHeight = this.cellSize * this.engine.height
-    this.boardOriginX = padding
-    let totalRequiredWidth = this.boardOriginX + this.boardPixelWidth + desiredPanel + padding * 2
+    this.boardOriginX = outerPadding
+    let totalRequiredWidth =
+      this.boardOriginX + this.boardPixelWidth + desiredPanel + outerPadding * 2 + panelSpacing
     if (totalRequiredWidth > width) {
       const overflow = totalRequiredWidth - width
       const shrink = Math.ceil(overflow / this.engine.width)
       this.cellSize = Math.max(14, this.cellSize - shrink)
       this.boardPixelWidth = this.cellSize * this.engine.width
       this.boardPixelHeight = this.cellSize * this.engine.height
-      totalRequiredWidth = this.boardOriginX + this.boardPixelWidth + desiredPanel + padding * 2
+      totalRequiredWidth =
+        this.boardOriginX + this.boardPixelWidth + desiredPanel + outerPadding * 2 + panelSpacing
     }
     this.panelWidth = Math.max(
       minPanel,
-      Math.min(desiredPanel, width - this.boardOriginX - this.boardPixelWidth - padding * 2)
+      Math.min(
+        desiredPanel,
+        width - this.boardOriginX - this.boardPixelWidth - panelSpacing - outerPadding
+      )
     )
-    const verticalSpace = height - controlHeight - padding * 2 - this.boardPixelHeight
-    this.boardOriginY = padding + Math.max(0, Math.floor(verticalSpace / 2))
-    this.controlTop = this.boardOriginY + this.boardPixelHeight + padding
+    const verticalSpace = height - controlHeight - outerPadding * 2 - this.boardPixelHeight
+    this.boardOriginY = outerPadding + Math.max(0, Math.floor(verticalSpace / 2))
+    this.controlTop = this.boardOriginY + this.boardPixelHeight + outerPadding
     this.needsDraw = true
     this.layoutControlButtons()
     this.layoutHudPanel()
@@ -402,6 +441,7 @@ export class TetrixScene extends Phaser.Scene {
       layer.add(cell)
     }
 
+    const pauseButton = this.createHudButton('Pause', 'pause')
     const saveButton = this.createHudButton('Save', 'save')
     const restartButton = this.createHudButton('Restart', 'restart')
 
@@ -425,6 +465,7 @@ export class TetrixScene extends Phaser.Scene {
       levelValue,
       nextLabel,
       nextCells,
+      pauseButton,
       saveButton,
       restartButton,
       statusText
@@ -435,14 +476,31 @@ export class TetrixScene extends Phaser.Scene {
 
   private layoutHudPanel() {
     if (!this.hudElements) return
-    const { panelBg, scoreLabel, scoreValue, linesLabel, linesValue, levelLabel, levelValue, nextLabel, nextCells, saveButton, restartButton, statusText } =
-      this.hudElements
-    const panelLeft = this.boardOriginX + this.boardPixelWidth + 24
+    const {
+      panelBg,
+      scoreLabel,
+      scoreValue,
+      linesLabel,
+      linesValue,
+      levelLabel,
+      levelValue,
+      nextLabel,
+      nextCells,
+      pauseButton,
+      saveButton,
+      restartButton,
+      statusText
+    } = this.hudElements
+    const { width: canvasWidth } = this.scale.gameSize
+    const panelWidth = Math.max(this.panelWidth, 150)
     const panelTop = this.boardOriginY
-    const width = Math.max(this.panelWidth, 150)
-    const height = Math.max(this.boardPixelHeight, 280)
+    const panelHeight = Math.max(this.boardPixelHeight, 280)
+    const panelLeft = Math.max(
+      this.boardOriginX + this.boardPixelWidth + 32,
+      canvasWidth - panelWidth - 18
+    )
     panelBg.setPosition(panelLeft, panelTop)
-    panelBg.setDisplaySize(width, height)
+    panelBg.setDisplaySize(panelWidth, panelHeight)
 
     const textLeft = panelLeft + 16
     let cursorY = panelTop + 20
@@ -456,7 +514,7 @@ export class TetrixScene extends Phaser.Scene {
     nextLabel.setPosition(textLeft, cursorY)
     cursorY += 28
     const previewGap = 6
-    const previewCellSize = Math.min((width - 32 - previewGap * 3) / 4, 32)
+    const previewCellSize = Math.min((panelWidth - 32 - previewGap * 3) / 4, 32)
     const previewLeft = textLeft
     const previewTop = cursorY
 
@@ -471,11 +529,20 @@ export class TetrixScene extends Phaser.Scene {
     })
 
     cursorY = previewTop + previewCellSize * 4 + previewGap * 3 + 24
-    const buttonWidth = Math.max(120, width - 32)
+    const buttonWidth = Math.max(140, panelWidth - 32)
     const buttonHeight = 52
+    const centerX = panelLeft + panelWidth / 2
+    this.positionHudButton(
+      pauseButton,
+      centerX,
+      cursorY + buttonHeight / 2,
+      buttonWidth,
+      buttonHeight
+    )
+    cursorY += buttonHeight + 12
     this.positionHudButton(
       saveButton,
-      panelLeft + width / 2,
+      centerX,
       cursorY + buttonHeight / 2,
       buttonWidth,
       buttonHeight
@@ -483,7 +550,7 @@ export class TetrixScene extends Phaser.Scene {
     cursorY += buttonHeight + 12
     this.positionHudButton(
       restartButton,
-      panelLeft + width / 2,
+      centerX,
       cursorY + buttonHeight / 2,
       buttonWidth,
       buttonHeight
@@ -562,6 +629,8 @@ export class TetrixScene extends Phaser.Scene {
       this.callbacks.onRequestSave?.()
     } else if (action === 'restart') {
       this.callbacks.onRequestRestart?.()
+    } else if (action === 'pause') {
+      this.togglePause()
     }
   }
 
@@ -576,14 +645,20 @@ export class TetrixScene extends Phaser.Scene {
     if (!this.hudElements) return
     const disableSave = this.saveBusy || !this.lastState || this.lastState.isGameOver
     this.setHudButtonState(this.hudElements.saveButton, disableSave)
+    const disablePause = !this.lastState || this.lastState.isGameOver
+    this.setHudButtonState(this.hudElements.pauseButton, disablePause)
   }
 
   private updateHud(state: RenderState) {
     if (!this.hudElements) return
+     if (state.isGameOver && this.paused) {
+       this.paused = false
+     }
     this.hudElements.scoreValue.setText(state.score.toString())
     this.hudElements.linesValue.setText(state.linesCleared.toString())
     this.hudElements.levelValue.setText(state.level.toString())
     this.updateNextPreview(state.nextPiece)
+    this.updatePauseButtonLabel()
     this.applyHudButtonStates()
   }
 
@@ -611,11 +686,10 @@ export class TetrixScene extends Phaser.Scene {
 
   private createControlButtons() {
     const specs: ControlButtonSpec[] = [
-      { action: 'moveLeft', label: '◀', holdable: true, row: 0, span: 1 },
-      { action: 'rotate', label: '⟳', holdable: false, row: 0, span: 1 },
-      { action: 'softDrop', label: '▼', holdable: true, row: 0, span: 1 },
-      { action: 'moveRight', label: '▶', holdable: true, row: 0, span: 1 },
-      { action: 'hardDrop', label: 'DROP', holdable: false, row: 1, span: 4 }
+      { action: 'moveLeft', label: '◀', holdable: true, row: 0, span: 2 },
+      { action: 'rotate', label: '⟳', holdable: false, row: 0, span: 2 },
+      { action: 'moveRight', label: '▶', holdable: true, row: 0, span: 2 },
+      { action: 'hardDrop', label: 'DROP', holdable: false, row: 1, span: 6 }
     ]
     const layer = this.controlLayer ?? this.add.container(0, 0)
     this.controlLayer = layer
@@ -644,14 +718,14 @@ export class TetrixScene extends Phaser.Scene {
   private layoutControlButtons() {
     if (!this.controlButtons.length) return
     const { height } = this.scale.gameSize
-    const padding = 24
+    const padding = 18
     const gap = 12
     const buttonHeight = 68
     const totalRows = 2
     const neededHeight = totalRows * buttonHeight + gap
     const top = Math.min(height - padding - neededHeight, this.controlTop)
     const startX = this.boardOriginX
-    const usableWidth = Math.max(this.boardPixelWidth, 200)
+    const usableWidth = Math.max(this.boardPixelWidth, 320)
 
     for (let row = 0; row < totalRows; row += 1) {
       const rowButtons = this.controlButtons.filter((btn) => btn.row === row)
