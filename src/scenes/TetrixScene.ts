@@ -7,6 +7,20 @@ type SceneCallbacks = {
   onSceneReady?: () => void
 }
 
+type ControlButtonSpec = {
+  action: InputAction
+  label: string
+  holdable: boolean
+  row: number
+  span: number
+}
+
+type ControlButton = ControlButtonSpec & {
+  container: Phaser.GameObjects.Container
+  background: Phaser.GameObjects.Rectangle
+  text: Phaser.GameObjects.Text
+}
+
 const COLOR_MAP: Record<TetrominoType, number> = {
   I: 0x7dd3fc,
   J: 0x93c5fd,
@@ -16,6 +30,8 @@ const COLOR_MAP: Record<TetrominoType, number> = {
   T: 0xc084fc,
   Z: 0xf87171
 }
+
+const HOLDABLE_ACTIONS: InputAction[] = ['moveLeft', 'moveRight', 'softDrop']
 
 export class TetrixScene extends Phaser.Scene {
   private readonly engine = new TetrixEngine()
@@ -28,6 +44,9 @@ export class TetrixScene extends Phaser.Scene {
   private cellSize = 24
   private boardOriginX = 0
   private boardOriginY = 0
+  private controlLayer?: Phaser.GameObjects.Container
+  private controlButtons: ControlButton[] = []
+  private holdTimers = new Map<number, Phaser.Time.TimerEvent>()
 
   constructor(callbacks: SceneCallbacks = {}) {
     super('tetrix')
@@ -40,6 +59,9 @@ export class TetrixScene extends Phaser.Scene {
     this.scale.on('resize', this.handleResize, this)
     this.handleResize()
     this.registerKeyboard()
+    this.controlLayer = this.add.container(0, 0)
+    this.controlLayer.setDepth(10)
+    this.createControlButtons()
     this.ready = true
     this.callbacks.onSceneReady?.()
   }
@@ -218,6 +240,7 @@ export class TetrixScene extends Phaser.Scene {
     this.boardOriginX = Math.floor((width - this.cellSize * this.engine.width) / 2)
     this.boardOriginY = Math.floor((height - this.cellSize * this.engine.height) / 2)
     this.needsDraw = true
+    this.layoutControlButtons()
   }
 
   private registerKeyboard() {
@@ -240,5 +263,108 @@ export class TetrixScene extends Phaser.Scene {
         this.handleAction(action)
       })
     })
+  }
+
+  private createControlButtons() {
+    const specs: ControlButtonSpec[] = [
+      { action: 'moveLeft', label: '◀', holdable: true, row: 0, span: 1 },
+      { action: 'rotate', label: '⟳', holdable: false, row: 0, span: 1 },
+      { action: 'softDrop', label: '▼', holdable: true, row: 0, span: 1 },
+      { action: 'moveRight', label: '▶', holdable: true, row: 0, span: 1 },
+      { action: 'hardDrop', label: 'DROP', holdable: false, row: 1, span: 4 }
+    ]
+    const layer = this.controlLayer ?? this.add.container(0, 0)
+    this.controlButtons = specs.map((spec) => {
+      const container = this.add.container(0, 0)
+      container.setDepth(10)
+      const background = this.add.rectangle(0, 0, 120, 60, 0x101828, 0.95)
+      background.setStrokeStyle(2, 0x475569, 0.85)
+      const fontSize = spec.action === 'hardDrop' ? 24 : 36
+      const text = this.add
+        .text(0, 0, spec.label, {
+          color: '#f8fafc',
+          fontSize: `${fontSize}px`,
+          fontFamily: 'Space Grotesk'
+        })
+        .setOrigin(0.5)
+      container.add([background, text])
+      layer.add(container)
+      const control: ControlButton = { ...spec, container, background, text }
+      this.registerControlInteractions(control)
+      return control
+    })
+    this.layoutControlButtons()
+  }
+
+  private layoutControlButtons() {
+    if (!this.controlButtons.length) return
+    const { width, height } = this.scale.gameSize
+    const topCandidate = this.boardOriginY + this.cellSize * this.engine.height + 16
+    const padding = 24
+    const gap = 12
+    const buttonHeight = 68
+    const totalRows = 2
+    const neededHeight = totalRows * buttonHeight + gap
+    const top = Math.min(height - padding - neededHeight, topCandidate)
+
+    for (let row = 0; row < totalRows; row += 1) {
+      const rowButtons = this.controlButtons.filter((btn) => btn.row === row)
+      if (!rowButtons.length) continue
+      const totalSpan = rowButtons.reduce((sum, btn) => sum + btn.span, 0)
+      const available =
+        width - padding * 2 - gap * Math.max(0, rowButtons.length - 1)
+      const perUnit = available / totalSpan
+      let cursorX = padding
+      const centerY = top + row * (buttonHeight + gap) + buttonHeight / 2
+      rowButtons.forEach((btn) => {
+        const btnWidth = perUnit * btn.span
+        btn.container.setPosition(cursorX + btnWidth / 2, centerY)
+        btn.background.setSize(btnWidth, buttonHeight)
+        btn.background.setDisplaySize(btnWidth, buttonHeight)
+        cursorX += btnWidth + gap
+      })
+    }
+  }
+
+  private registerControlInteractions(control: ControlButton) {
+    const { background, holdable, action } = control
+    background.setInteractive({ useHandCursor: true })
+    const pressColor = 0x1d2b46
+    const idleColor = 0x101828
+
+    const handlePointerUp = (pointer: Phaser.Input.Pointer) => {
+      background.setFillStyle(idleColor, 0.95)
+      this.stopHold(pointer.id)
+    }
+
+    background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      background.setFillStyle(pressColor, 0.95)
+      this.handleAction(action)
+      if (holdable && HOLDABLE_ACTIONS.includes(action)) {
+        this.startHold(action, pointer.id, action === 'softDrop' ? 60 : 110)
+      }
+    })
+    background.on('pointerup', handlePointerUp)
+    background.on('pointerupoutside', handlePointerUp)
+    background.on('pointerout', handlePointerUp)
+    background.on('pointercancel', handlePointerUp)
+  }
+
+  private startHold(action: InputAction, pointerId: number, delay: number) {
+    this.stopHold(pointerId)
+    const event = this.time.addEvent({
+      delay,
+      loop: true,
+      callback: () => this.handleAction(action)
+    })
+    this.holdTimers.set(pointerId, event)
+  }
+
+  private stopHold(pointerId: number) {
+    const event = this.holdTimers.get(pointerId)
+    if (event) {
+      event.remove(false)
+      this.holdTimers.delete(pointerId)
+    }
   }
 }

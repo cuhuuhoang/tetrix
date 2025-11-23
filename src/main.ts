@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import './style.css'
 import { TetrixScene } from './scenes/TetrixScene'
-import type { GameSnapshot, InputAction, RenderState, TetrominoType } from './tetrixLogic'
+import type { GameSnapshot, RenderState, TetrominoType } from './tetrixLogic'
 import { getMatrixForType } from './tetrixLogic'
 import { SavingService } from './saving'
 import { createWakeLockManager } from './wakelock'
@@ -55,13 +55,6 @@ app.innerHTML = `
         </div>
       </div>
     </div>
-    <section id="touchControls" class="touch-controls hidden" aria-label="Touch controls">
-      <button type="button" data-action="moveLeft">◀</button>
-      <button type="button" data-action="rotate">⟳</button>
-      <button type="button" data-action="softDrop">▼</button>
-      <button type="button" data-action="moveRight">▶</button>
-      <button type="button" data-action="hardDrop" class="wide">DROP</button>
-    </section>
   </main>
 `
 
@@ -73,7 +66,6 @@ const loadButton = document.querySelector<HTMLButtonElement>('#loadButton')!
 const saveButton = document.querySelector<HTMLButtonElement>('#saveButton')!
 const restartButton = document.querySelector<HTMLButtonElement>('#restartButton')!
 const statusBanner = document.querySelector<HTMLParagraphElement>('#statusBanner')!
-const touchControls = document.querySelector<HTMLDivElement>('#touchControls')!
 const scoreEl = document.querySelector<HTMLSpanElement>('#scoreValue')!
 const linesEl = document.querySelector<HTMLSpanElement>('#linesValue')!
 const levelEl = document.querySelector<HTMLSpanElement>('#levelValue')!
@@ -121,7 +113,6 @@ new Phaser.Game({
 })
 
 preventGestureZoom()
-setupTouchControls()
 void refreshLoadState()
 
 startButton.addEventListener('click', () => {
@@ -240,35 +231,6 @@ function getPreviewColor(type: TetrominoType) {
     default:
       return '#f87171'
   }
-}
-
-function setupTouchControls() {
-  const query = window.matchMedia('(pointer: coarse)')
-  const updateVisibility = () => {
-    if (query.matches) {
-      touchControls.classList.remove('hidden')
-    } else {
-      touchControls.classList.add('hidden')
-    }
-  }
-  if ('addEventListener' in query) {
-    query.addEventListener('change', updateVisibility)
-  } else {
-    // @ts-expect-error Legacy Safari fallback
-    query.addListener(updateVisibility)
-  }
-  updateVisibility()
-
-  const buttons = Array.from(
-    touchControls.querySelectorAll<HTMLButtonElement>('button[data-action]')
-  )
-  buttons.forEach((btn) => {
-    const action = btn.dataset.action as InputAction | undefined
-    if (!action) return
-    btn.addEventListener('click', () => {
-      scene.handleAction(action)
-    })
-  })
 }
 
 function preventGestureZoom() {
