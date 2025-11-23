@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  GameSnapshot,
-  TetrixEngine,
-  getMatrixForType
-} from './tetrixLogic'
+import type { Cell, GameSnapshot } from './tetrixLogic'
+import { BOARD_HEIGHT, BOARD_WIDTH, TetrixEngine, getMatrixForType } from './tetrixLogic'
 
 describe('TetrixEngine core rules', () => {
   it('clears a completed line and increases score', () => {
     const engine = new TetrixEngine()
-    const board = Array.from({ length: BOARD_HEIGHT }, () =>
+    const board: Cell[][] = Array.from({ length: BOARD_HEIGHT }, () =>
       Array.from({ length: BOARD_WIDTH }, () => null)
     )
     board[BOARD_HEIGHT - 1] = Array.from({ length: BOARD_WIDTH }, () => 'T')
@@ -68,7 +63,7 @@ describe('TetrixEngine core rules', () => {
 
   it('hard drop awards distance-based bonus and locks the piece', () => {
     const engine = new TetrixEngine()
-    const board = Array.from({ length: BOARD_HEIGHT }, () =>
+    const board: Cell[][] = Array.from({ length: BOARD_HEIGHT }, () =>
       Array.from({ length: BOARD_WIDTH }, () => null)
     )
     const verticalI = [

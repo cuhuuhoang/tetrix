@@ -1,11 +1,6 @@
 import Phaser from 'phaser'
-import {
-  GameSnapshot,
-  InputAction,
-  RenderState,
-  TetrominoType,
-  TetrixEngine
-} from '../tetrixLogic'
+import type { GameSnapshot, InputAction, RenderState, TetrominoType } from '../tetrixLogic'
+import { TetrixEngine } from '../tetrixLogic'
 
 type SceneCallbacks = {
   onStateUpdate?: (state: RenderState) => void

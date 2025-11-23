@@ -1,5 +1,5 @@
 import localforage from 'localforage'
-import { GameSnapshot } from './tetrixLogic'
+import type { GameSnapshot } from './tetrixLogic'
 
 export interface SavePayload {
   snapshot: GameSnapshot
@@ -13,7 +13,11 @@ localforage.config({
 })
 
 export class SavingService {
-  constructor(private readonly key = 'tetrix-slot') {}
+  private readonly key: string
+
+  constructor(key = 'tetrix-slot') {
+    this.key = key
+  }
 
   async save(snapshot: GameSnapshot) {
     const payload: SavePayload = {

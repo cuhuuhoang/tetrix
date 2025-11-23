@@ -1,13 +1,8 @@
 import Phaser from 'phaser'
 import './style.css'
 import { TetrixScene } from './scenes/TetrixScene'
-import {
-  GameSnapshot,
-  InputAction,
-  RenderState,
-  TetrominoType,
-  getMatrixForType
-} from './tetrixLogic'
+import type { GameSnapshot, InputAction, RenderState, TetrominoType } from './tetrixLogic'
+import { getMatrixForType } from './tetrixLogic'
 import { SavingService } from './saving'
 import { createWakeLockManager } from './wakelock'
 
@@ -306,7 +301,8 @@ function preventGestureZoom() {
   document.addEventListener(
     'touchmove',
     (event) => {
-      if (event.scale && event.scale !== 1) {
+      const pinchEvent = event as TouchEvent & { scale?: number }
+      if (typeof pinchEvent.scale === 'number' && pinchEvent.scale !== 1) {
         event.preventDefault()
       }
     },
