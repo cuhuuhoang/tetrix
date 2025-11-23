@@ -651,9 +651,9 @@ export class TetrixScene extends Phaser.Scene {
 
   private updateHud(state: RenderState) {
     if (!this.hudElements) return
-     if (state.isGameOver && this.paused) {
-       this.paused = false
-     }
+    if (state.isGameOver && this.paused) {
+      this.paused = false
+    }
     this.hudElements.scoreValue.setText(state.score.toString())
     this.hudElements.linesValue.setText(state.linesCleared.toString())
     this.hudElements.levelValue.setText(state.level.toString())
