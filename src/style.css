@@ -50,6 +50,8 @@ body {
 #game-shell {
   width: min(1000px, 100%);
   position: relative;
+  display: flex;
+  justify-content: center;
 }
 
 button {
@@ -89,8 +91,10 @@ button:not(:disabled):active {
 }
 
 #game-container {
-  width: 100%;
-  height: min(85vh, 780px);
+  width: clamp(320px, 68vw, 720px);
+  max-height: 85vh;
+  aspect-ratio: 2 / 3;
+  height: auto;
   background: #05070c;
   border-radius: 24px;
   overflow: hidden;

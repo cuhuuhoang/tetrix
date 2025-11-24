@@ -23,7 +23,7 @@ type ControlButton = ControlButtonSpec & {
   text: Phaser.GameObjects.Text
 }
 
-type HudButtonAction = 'save' | 'restart' | 'pause'
+type HudButtonAction = 'save' | 'pause'
 
 type HudButton = {
   action: HudButtonAction
@@ -45,7 +45,6 @@ type HudElements = {
   nextCells: Phaser.GameObjects.Rectangle[]
   pauseButton: HudButton
   saveButton: HudButton
-  restartButton: HudButton
   statusText: Phaser.GameObjects.Text
 }
 
@@ -75,6 +74,7 @@ export class TetrisScene extends Phaser.Scene {
   private boardPixelWidth = 0
   private boardPixelHeight = 0
   private panelWidth = 220
+  private panelLeft = 0
   private controlTop = 0
   private hudLayer?: Phaser.GameObjects.Container
   private hudElements?: HudElements
@@ -84,7 +84,7 @@ export class TetrisScene extends Phaser.Scene {
   private paused = false
   private controlLayer?: Phaser.GameObjects.Container
   private controlButtons: ControlButton[] = []
-  private holdTimers = new Map<number, Phaser.Time.TimerEvent>()
+  private holdTimers = new Map<string, Phaser.Time.TimerEvent>()
 
   constructor(callbacks: SceneCallbacks = {}) {
     super('tetris')
@@ -370,8 +370,8 @@ export class TetrisScene extends Phaser.Scene {
     this.boardOriginY = outerPadding + Math.max(0, Math.floor(verticalSpace / 2))
     this.controlTop = this.boardOriginY + this.boardPixelHeight + outerPadding
     this.needsDraw = true
-    this.layoutControlButtons()
     this.layoutHudPanel()
+    this.layoutControlButtons()
   }
 
   private registerKeyboard() {
@@ -390,9 +390,14 @@ export class TetrisScene extends Phaser.Scene {
     ]
     bindings.forEach(([code, action]) => {
       const key = this.input.keyboard!.addKey(code)
+      const holdable = HOLDABLE_ACTIONS.includes(action)
       key.on('down', () => {
         this.handleAction(action)
+        if (holdable) {
+          this.startHold(action, `key-${code}`, action === 'softDrop' ? 60 : 110)
+        }
       })
+      key.on('up', () => this.stopHold(`key-${code}`))
     })
   }
 
@@ -443,7 +448,6 @@ export class TetrisScene extends Phaser.Scene {
 
     const pauseButton = this.createHudButton('Pause', 'pause')
     const saveButton = this.createHudButton('Save', 'save')
-    const restartButton = this.createHudButton('Restart', 'restart')
 
     const statusText = this.add
       .text(0, 0, '', {
@@ -467,7 +471,6 @@ export class TetrisScene extends Phaser.Scene {
       nextCells,
       pauseButton,
       saveButton,
-      restartButton,
       statusText
     }
     this.layoutHudPanel()
@@ -488,17 +491,17 @@ export class TetrisScene extends Phaser.Scene {
       nextCells,
       pauseButton,
       saveButton,
-      restartButton,
       statusText
     } = this.hudElements
     const { width: canvasWidth } = this.scale.gameSize
     const panelWidth = Math.max(this.panelWidth, 150)
     const panelTop = this.boardOriginY
-    const panelHeight = Math.max(this.boardPixelHeight, 280)
+    let panelHeight = Math.max(this.boardPixelHeight, 280)
     const panelLeft = Math.max(
       this.boardOriginX + this.boardPixelWidth + 32,
       canvasWidth - panelWidth - 18
     )
+    this.panelLeft = panelLeft
     panelBg.setPosition(panelLeft, panelTop)
     panelBg.setDisplaySize(panelWidth, panelHeight)
 
@@ -547,17 +550,12 @@ export class TetrisScene extends Phaser.Scene {
       buttonWidth,
       buttonHeight
     )
-    cursorY += buttonHeight + 12
-    this.positionHudButton(
-      restartButton,
-      centerX,
-      cursorY + buttonHeight / 2,
-      buttonWidth,
-      buttonHeight
-    )
     cursorY += buttonHeight + 16
     statusText.setPosition(textLeft, cursorY)
     statusText.setWordWrapWidth(buttonWidth)
+    const panelHeightNeeded = cursorY + Math.max(statusText.height, 18) + 20 - panelTop
+    panelHeight = Math.max(panelHeight, panelHeightNeeded)
+    panelBg.setDisplaySize(panelWidth, panelHeight)
   }
 
   private positionMetric(
@@ -627,8 +625,6 @@ export class TetrisScene extends Phaser.Scene {
     if (action === 'save') {
       if (this.saveBusy || this.lastState?.isGameOver) return
       this.callbacks.onRequestSave?.()
-    } else if (action === 'restart') {
-      this.callbacks.onRequestRestart?.()
     } else if (action === 'pause') {
       this.togglePause()
     }
@@ -725,7 +721,13 @@ export class TetrisScene extends Phaser.Scene {
     const neededHeight = totalRows * buttonHeight + gap
     const top = Math.min(height - padding - neededHeight, this.controlTop)
     const startX = this.boardOriginX
-    const usableWidth = Math.max(this.boardPixelWidth, 320)
+    const safetyGap = 12
+    const maxWidthBeforePanel =
+      this.panelLeft > 0 ? this.panelLeft - startX - safetyGap : undefined
+    let usableWidth = Math.max(this.boardPixelWidth, 320)
+    if (maxWidthBeforePanel && maxWidthBeforePanel > 0) {
+      usableWidth = Math.min(usableWidth, maxWidthBeforePanel)
+    }
 
     for (let row = 0; row < totalRows; row += 1) {
       const rowButtons = this.controlButtons.filter((btn) => btn.row === row)
@@ -754,14 +756,14 @@ export class TetrisScene extends Phaser.Scene {
 
     const handlePointerUp = (pointer: Phaser.Input.Pointer) => {
       background.setFillStyle(idleColor, 0.95)
-      this.stopHold(pointer.id)
+      this.stopHold(`pointer-${pointer.id}`)
     }
 
     background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       background.setFillStyle(pressColor, 0.95)
       this.handleAction(action)
       if (holdable && HOLDABLE_ACTIONS.includes(action)) {
-        this.startHold(action, pointer.id, action === 'softDrop' ? 60 : 110)
+        this.startHold(action, `pointer-${pointer.id}`, action === 'softDrop' ? 60 : 110)
       }
     })
     background.on('pointerup', handlePointerUp)
@@ -770,21 +772,21 @@ export class TetrisScene extends Phaser.Scene {
     background.on('pointercancel', handlePointerUp)
   }
 
-  private startHold(action: InputAction, pointerId: number, delay: number) {
-    this.stopHold(pointerId)
+  private startHold(action: InputAction, holdId: string, delay: number) {
+    this.stopHold(holdId)
     const event = this.time.addEvent({
       delay,
       loop: true,
       callback: () => this.handleAction(action)
     })
-    this.holdTimers.set(pointerId, event)
+    this.holdTimers.set(holdId, event)
   }
 
-  private stopHold(pointerId: number) {
-    const event = this.holdTimers.get(pointerId)
+  private stopHold(holdId: string) {
+    const event = this.holdTimers.get(holdId)
     if (event) {
       event.remove(false)
-      this.holdTimers.delete(pointerId)
+      this.holdTimers.delete(holdId)
     }
   }
 }
