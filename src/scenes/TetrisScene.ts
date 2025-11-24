@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
-import type { GameSnapshot, InputAction, RenderState, TetrominoType } from '../tetrixLogic'
-import { TetrixEngine, getMatrixForType } from '../tetrixLogic'
+import type { GameSnapshot, InputAction, RenderState, TetrominoType } from '../tetrisLogic'
+import { TetrisEngine, getMatrixForType } from '../tetrisLogic'
 
 type SceneCallbacks = {
   onStateUpdate?: (state: RenderState) => void
@@ -61,8 +61,8 @@ const COLOR_MAP: Record<TetrominoType, number> = {
 
 const HOLDABLE_ACTIONS: InputAction[] = ['moveLeft', 'moveRight', 'softDrop']
 
-export class TetrixScene extends Phaser.Scene {
-  private readonly engine = new TetrixEngine()
+export class TetrisScene extends Phaser.Scene {
+  private readonly engine = new TetrisEngine()
   private callbacks: SceneCallbacks
   private graphics?: Phaser.GameObjects.Graphics
   private dropTimer = 0
@@ -87,7 +87,7 @@ export class TetrixScene extends Phaser.Scene {
   private holdTimers = new Map<number, Phaser.Time.TimerEvent>()
 
   constructor(callbacks: SceneCallbacks = {}) {
-    super('tetrix')
+    super('tetris')
     this.callbacks = callbacks
   }
 

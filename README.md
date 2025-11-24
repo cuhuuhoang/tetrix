@@ -1,6 +1,6 @@
-# Tetrix
+# Tetris
 
-Low power Tetrix (Tetris) clone built with **Phaser 4 Canvas** and Vite. It runs entirely on the client, saves progress offline with localForage, and targets both desktop and iOS Chrome with a capped 30 FPS render loop to minimize battery usage.
+Low power Tetris clone built with **Phaser 4 Canvas** and Vite. It runs entirely on the client, saves progress offline with localForage, and targets both desktop and iOS Chrome with a capped 30 FPS render loop to minimize battery usage.
 
 ## Features
 
@@ -9,7 +9,7 @@ Low power Tetrix (Tetris) clone built with **Phaser 4 Canvas** and Vite. It runs
 - Autoscaled layout: the playfield expands as screen width allows, and the HUD slides to the right.
 - Saving/loading backed by localForage; Wake Lock + `nosleep.js` keep iOS screens awake.
 - Gesture suppression to prevent zoom/double-tap on mobile Safari/Chrome.
-- Deterministic Tetrix engine with tests for line clearing, snapshots, and hard drop rules.
+- Deterministic Tetris engine with tests for line clearing, snapshots, and hard drop rules.
 - GitHub Actions pipeline runs lint-free builds/tests and deploys via Pages artifacts.
 
 ## Getting Started
@@ -35,7 +35,7 @@ Artifacts land in `dist/`. The default workflow (`.github/workflows/deploy.yml`)
 npm run test
 ```
 
-Vitest executes the Tetrix engine unit tests (`src/tetrixLogic.test.ts`) using a jsdom environment.
+Vitest executes the Tetris engine unit tests (`src/tetrisLogic.test.ts`) using a jsdom environment.
 
 ## Controls
 

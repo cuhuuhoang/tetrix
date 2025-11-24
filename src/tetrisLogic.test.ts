@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { Cell, GameSnapshot } from './tetrixLogic'
-import { BOARD_HEIGHT, BOARD_WIDTH, TetrixEngine, getMatrixForType } from './tetrixLogic'
+import type { Cell, GameSnapshot } from './tetrisLogic'
+import { BOARD_HEIGHT, BOARD_WIDTH, TetrisEngine, getMatrixForType } from './tetrisLogic'
 
-describe('TetrixEngine core rules', () => {
+describe('TetrisEngine core rules', () => {
   it('clears a completed line and increases score', () => {
-    const engine = new TetrixEngine()
+    const engine = new TetrisEngine()
     const board: Cell[][] = Array.from({ length: BOARD_HEIGHT }, () =>
       Array.from({ length: BOARD_WIDTH }, () => null)
     )
@@ -39,13 +39,13 @@ describe('TetrixEngine core rules', () => {
   })
 
   it('restores a snapshot without losing the queue', () => {
-    const engine = new TetrixEngine()
+    const engine = new TetrisEngine()
     engine.start()
     engine.handleAction('moveLeft')
     engine.stepDown()
 
     const snapshot = engine.getSnapshot()
-    const rehydrated = new TetrixEngine()
+    const rehydrated = new TetrisEngine()
     rehydrated.start(snapshot)
 
     const state = rehydrated.getRenderState()
@@ -62,7 +62,7 @@ describe('TetrixEngine core rules', () => {
   })
 
   it('hard drop awards distance-based bonus and locks the piece', () => {
-    const engine = new TetrixEngine()
+    const engine = new TetrisEngine()
     const board: Cell[][] = Array.from({ length: BOARD_HEIGHT }, () =>
       Array.from({ length: BOARD_WIDTH }, () => null)
     )

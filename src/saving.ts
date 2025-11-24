@@ -1,5 +1,5 @@
 import localforage from 'localforage'
-import type { GameSnapshot } from './tetrixLogic'
+import type { GameSnapshot } from './tetrisLogic'
 
 export interface SavePayload {
   snapshot: GameSnapshot
@@ -7,15 +7,15 @@ export interface SavePayload {
 }
 
 localforage.config({
-  name: 'tetrix',
-  storeName: 'tetrix_state',
-  description: 'Tetrix progress for offline play'
+  name: 'tetris',
+  storeName: 'tetris_state',
+  description: 'Tetris progress for offline play'
 })
 
 export class SavingService {
   private readonly key: string
 
-  constructor(key = 'tetrix-slot') {
+  constructor(key = 'tetris-slot') {
     this.key = key
   }
 

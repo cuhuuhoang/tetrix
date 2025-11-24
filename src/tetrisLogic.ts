@@ -66,7 +66,7 @@ export const BOARD_HEIGHT = 20
 
 export type InputAction = 'moveLeft' | 'moveRight' | 'rotate' | 'softDrop' | 'hardDrop'
 
-export class TetrixEngine {
+export class TetrisEngine {
   public readonly width = BOARD_WIDTH
   public readonly height = BOARD_HEIGHT
 

@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import './style.css'
-import { TetrixScene } from './scenes/TetrixScene'
-import type { GameSnapshot, RenderState } from './tetrixLogic'
+import { TetrisScene } from './scenes/TetrisScene'
+import type { GameSnapshot, RenderState } from './tetrisLogic'
 import { SavingService } from './saving'
 import { createWakeLockManager } from './wakelock'
 
@@ -19,8 +19,8 @@ app.innerHTML = `
       <div id="game-container" aria-live="off"></div>
       <div id="menu" class="menu" aria-live="polite">
         <div class="menu-card">
-          <h1>Tetrix</h1>
-          <p>Low battery Tetrix built with Phaser 4 Canvas. No account required.</p>
+          <h1>Tetris</h1>
+          <p>Low battery Tetris built with Phaser 4 Canvas. No account required.</p>
           <div class="menu-buttons">
             <button id="startButton" class="primary" type="button">Start New Game</button>
             <button id="loadButton" class="secondary" type="button" disabled>Load Saved Game</button>
@@ -42,7 +42,7 @@ const sceneReady = new Promise<void>((resolve) => {
   sceneReadyResolve = resolve
 })
 
-const scene = new TetrixScene({
+const scene = new TetrisScene({
   onSceneReady: () => sceneReadyResolve(),
   onStateUpdate: (state) => handleStateUpdate(state),
   onRequestSave: () => {
