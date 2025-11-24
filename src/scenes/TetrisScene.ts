@@ -5,8 +5,6 @@ import { TetrisEngine, getMatrixForType } from '../tetrisLogic'
 type SceneCallbacks = {
   onStateUpdate?: (state: RenderState) => void
   onSceneReady?: () => void
-  onRequestSave?: () => void
-  onRequestRestart?: () => void
 }
 
 type ControlButtonSpec = {
@@ -23,7 +21,7 @@ type ControlButton = ControlButtonSpec & {
   text: Phaser.GameObjects.Text
 }
 
-type HudButtonAction = 'save' | 'pause'
+type HudButtonAction = 'pause'
 
 type HudButton = {
   action: HudButtonAction
@@ -44,7 +42,6 @@ type HudElements = {
   nextLabel: Phaser.GameObjects.Text
   nextCells: Phaser.GameObjects.Rectangle[]
   pauseButton: HudButton
-  saveButton: HudButton
   statusText: Phaser.GameObjects.Text
 }
 
@@ -80,7 +77,6 @@ export class TetrisScene extends Phaser.Scene {
   private hudElements?: HudElements
   private statusTimer?: Phaser.Time.TimerEvent
   private lastState?: RenderState
-  private saveBusy = false
   private paused = false
   private controlLayer?: Phaser.GameObjects.Container
   private controlButtons: ControlButton[] = []
@@ -129,7 +125,6 @@ export class TetrisScene extends Phaser.Scene {
 
   startNewGame(snapshot?: GameSnapshot) {
     this.engine.start(snapshot)
-    this.saveBusy = false
     this.paused = false
     this.resetDropTimer()
     this.needsDraw = true
@@ -178,11 +173,6 @@ export class TetrisScene extends Phaser.Scene {
         }
       })
     }
-  }
-
-  setSaveBusy(busy: boolean) {
-    this.saveBusy = busy
-    this.applyHudButtonStates()
   }
 
   private togglePause() {
@@ -447,7 +437,6 @@ export class TetrisScene extends Phaser.Scene {
     }
 
     const pauseButton = this.createHudButton('Pause', 'pause')
-    const saveButton = this.createHudButton('Save', 'save')
 
     const statusText = this.add
       .text(0, 0, '', {
@@ -470,7 +459,6 @@ export class TetrisScene extends Phaser.Scene {
       nextLabel,
       nextCells,
       pauseButton,
-      saveButton,
       statusText
     }
     this.layoutHudPanel()
@@ -490,7 +478,6 @@ export class TetrisScene extends Phaser.Scene {
       nextLabel,
       nextCells,
       pauseButton,
-      saveButton,
       statusText
     } = this.hudElements
     const { width: canvasWidth } = this.scale.gameSize
@@ -537,14 +524,6 @@ export class TetrisScene extends Phaser.Scene {
     const centerX = panelLeft + panelWidth / 2
     this.positionHudButton(
       pauseButton,
-      centerX,
-      cursorY + buttonHeight / 2,
-      buttonWidth,
-      buttonHeight
-    )
-    cursorY += buttonHeight + 12
-    this.positionHudButton(
-      saveButton,
       centerX,
       cursorY + buttonHeight / 2,
       buttonWidth,
@@ -622,10 +601,7 @@ export class TetrisScene extends Phaser.Scene {
   }
 
   private handleHudButton(action: HudButtonAction) {
-    if (action === 'save') {
-      if (this.saveBusy || this.lastState?.isGameOver) return
-      this.callbacks.onRequestSave?.()
-    } else if (action === 'pause') {
+    if (action === 'pause') {
       this.togglePause()
     }
   }
@@ -639,8 +615,6 @@ export class TetrisScene extends Phaser.Scene {
 
   private applyHudButtonStates() {
     if (!this.hudElements) return
-    const disableSave = this.saveBusy || !this.lastState || this.lastState.isGameOver
-    this.setHudButtonState(this.hudElements.saveButton, disableSave)
     const disablePause = !this.lastState || this.lastState.isGameOver
     this.setHudButtonState(this.hudElements.pauseButton, disablePause)
   }

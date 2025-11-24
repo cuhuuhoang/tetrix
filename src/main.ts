@@ -1,11 +1,9 @@
 import Phaser from 'phaser'
 import './style.css'
 import { TetrisScene } from './scenes/TetrisScene'
-import type { GameSnapshot, RenderState } from './tetrisLogic'
-import { SavingService } from './saving'
+import type { RenderState } from './tetrisLogic'
 import { createWakeLockManager } from './wakelock'
 
-const savingService = new SavingService()
 const wakeLock = createWakeLockManager()
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -23,9 +21,7 @@ app.innerHTML = `
           <p>Low battery Tetris built with Phaser 4 Canvas. No account required.</p>
           <div class="menu-buttons">
             <button id="startButton" class="primary" type="button">Start New Game</button>
-            <button id="loadButton" class="secondary" type="button" disabled>Load Saved Game</button>
           </div>
-          <p id="menuStatus" class="menu-status">Checking storage…</p>
         </div>
       </div>
     </div>
@@ -33,9 +29,8 @@ app.innerHTML = `
 `
 
 const menuEl = document.querySelector<HTMLDivElement>('#menu')!
-const menuStatus = document.querySelector<HTMLParagraphElement>('#menuStatus')!
 const startButton = document.querySelector<HTMLButtonElement>('#startButton')!
-const loadButton = document.querySelector<HTMLButtonElement>('#loadButton')!
+renderBuildVersion()
 
 let sceneReadyResolve: () => void = () => {}
 const sceneReady = new Promise<void>((resolve) => {
@@ -44,13 +39,7 @@ const sceneReady = new Promise<void>((resolve) => {
 
 const scene = new TetrisScene({
   onSceneReady: () => sceneReadyResolve(),
-  onStateUpdate: (state) => handleStateUpdate(state),
-  onRequestSave: () => {
-    void persistSession()
-  },
-  onRequestRestart: () => {
-    void beginSession()
-  }
+  onStateUpdate: (state) => handleStateUpdate(state)
 })
 
 new Phaser.Game({
@@ -77,59 +66,20 @@ new Phaser.Game({
 })
 
 preventGestureZoom()
-void refreshLoadState()
+registerServiceWorker()
 
 startButton.addEventListener('click', () => {
   void beginSession()
 })
 
-loadButton.addEventListener('click', () => {
-  void loadSavedSession()
-})
-
-async function beginSession(snapshot?: GameSnapshot) {
+async function beginSession() {
   await sceneReady
-  scene.startNewGame(snapshot)
+  scene.startNewGame()
   menuEl.classList.add('hidden')
   if (!wakeLock.isActive()) {
     await wakeLock.enable()
   }
-  scene.showStatus(snapshot ? 'Loaded saved game' : 'New game ready', 2000)
-}
-
-async function loadSavedSession() {
-  loadButton.disabled = true
-  menuStatus.textContent = 'Loading save…'
-  const payload = await savingService.load()
-  if (payload?.snapshot) {
-    await beginSession(payload.snapshot)
-    menuStatus.textContent = `Loaded from ${new Date(payload.savedAt).toLocaleString()}`
-  } else {
-    menuStatus.textContent = 'No saved data available'
-  }
-  await refreshLoadState()
-}
-
-async function persistSession() {
-  scene.setSaveBusy(true)
-  scene.showStatus('Saving progress…')
-  const snapshot = scene.getSnapshot()
-  const payload = await savingService.save(snapshot)
-  await refreshLoadState()
-  scene.setSaveBusy(false)
-  scene.showStatus('Progress saved', 2400)
-  menuStatus.textContent = `Last saved ${new Date(payload.savedAt).toLocaleTimeString()}`
-}
-
-async function refreshLoadState() {
-  const payload = await savingService.load()
-  if (payload) {
-    loadButton.disabled = false
-    menuStatus.textContent = `Save found (${new Date(payload.savedAt).toLocaleString()})`
-  } else {
-    loadButton.disabled = true
-    menuStatus.textContent = 'No save found yet'
-  }
+  scene.showStatus('New game ready', 2000)
 }
 
 let sawGameOver = false
@@ -180,4 +130,35 @@ function preventGestureZoom() {
     },
     { passive: false }
   )
+}
+
+function renderBuildVersion() {
+  const buildVersion = getBuildVersionString()
+  const tag = document.createElement('div')
+  tag.className = 'build-version'
+  tag.textContent = `Build ${buildVersion}`
+  document.body.appendChild(tag)
+}
+
+function getBuildVersionString() {
+  const fromEnv = import.meta.env.VITE_BUILD_VERSION
+  if (typeof fromEnv === 'string' && fromEnv.trim().length) {
+    return fromEnv.trim()
+  }
+  const now = new Date(Date.now() + 7 * 60 * 60 * 1000)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const y = now.getUTCFullYear().toString().padStart(4, '0')
+  const m = pad(now.getUTCMonth() + 1)
+  const d = pad(now.getUTCDate())
+  const hh = pad(now.getUTCHours())
+  const mm = pad(now.getUTCMinutes())
+  const ss = pad(now.getUTCSeconds())
+  return `${y}${m}${d} ${hh}${mm}${ss}`
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return
+  void navigator.serviceWorker
+    .register('/sw.js')
+    .catch((error) => console.warn('Service worker registration failed', error))
 }

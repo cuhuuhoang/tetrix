@@ -91,14 +91,25 @@ button:not(:disabled):active {
 }
 
 #game-container {
-  width: clamp(320px, 68vw, 720px);
-  max-height: 85vh;
-  aspect-ratio: 2 / 3;
-  height: auto;
+  --game-height: min(85vh, 90vw * 1.5, 780px);
+  height: var(--game-height);
+  width: calc(var(--game-height) * (2 / 3));
+  max-width: 900px;
+  min-width: 320px;
   background: #05070c;
   border-radius: 24px;
   overflow: hidden;
   box-shadow: 0 20px 45px rgba(2, 6, 23, 0.85);
+}
+
+@media (max-width: 720px) {
+  #game-container {
+    width: min(94vw, 640px);
+    min-width: 280px;
+    height: auto;
+    aspect-ratio: 2 / 3;
+    max-height: 90vh;
+  }
 }
 
 canvas {
@@ -154,6 +165,20 @@ canvas {
 .menu-status {
   font-size: 0.9rem;
   color: #94a3b8;
+}
+
+.build-version {
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  opacity: 0.6;
+  pointer-events: none;
+  user-select: none;
 }
 
 @media (max-width: 640px) {
